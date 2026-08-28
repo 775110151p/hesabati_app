@@ -1,9 +1,5 @@
 import 'package:sqflite/sqflite.dart' as sql;
 import 'package:path/path.dart' as path;
-import 'package:path_provider/path_provider.dart';
-import 'dartd:io';
-import 'package:share_plus/share_plus.dart';
-import 'package:file_picker/file_picker.dart';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
@@ -131,72 +127,5 @@ class DatabaseHelper {
   Future<int> deleteTransaction(int id) async {
     final db = await database;
     return await db.delete('transactions', where: 'id = ?', whereArgs: [id]);
-  }
-
-  Future<String> backupDatabase() async {
-    final db = await database;
-    await db.close();
-    _database = null;
-
-    final dbPath = await sql.getDatabasesPath();
-    final dbFile = File(path.join(dbPath, 'hesabati.db'));
-
-    final appDir = await getApplicationDocumentsDirectory();
-    final backupDir = Directory(path.join(appDir.path, 'backups'));
-    if (!await backupDir.exists()) {
-      await backupDir.create(recursive: true);
-    }
-
-    final timestamp = DateTime.now().toString().replaceAll(':', '-').split('.').first;
-    final backupFile = File(path.join(backupDir.path, 'hesabati_backup_$timestamp.db'));
-
-    await dbFile.copy(backupFile.path);
-    _database = await _initDB('hesabati.db');
-
-    return backupFile.path;
-  }
-
-  Future<String> exportBackup() async {
-    final db = await database;
-    await db.close();
-    _database = null;
-
-    final dbPath = await sql.getDatabasesPath();
-    final dbFile = File(path.join(dbPath, 'hesabati.db'));
-
-    final appDir = await getTemporaryDirectory();
-    final backupFile = File(path.join(appDir.path, 'hesabati_backup.db'));
-
-    await dbFile.copy(backupFile.path);
-
-    await Share.shareXFiles(
-      [XFile(backupFile.path)],
-      text: 'نسخة احتياطية - تطبيق حساباتي',
-    );
-
-    _database = await _initDB('hesabati.db');
-
-    return backupFile.path;
-  }
-
-  Future<void> restoreDatabase() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.any,
-      allowMultiple: false,
-    );
-
-    if (result == null || result.files.single.path == null) return;
-
-    final db = await database;
-    await db.close();
-    _database = null;
-
-    final dbPath = await sql.getDatabasesPath();
-    final dbFile = File(path.join(dbPath, 'hesabati.db'));
-
-    final pickedFile = File(result.files.single.path!);
-    await pickedFile.copy(dbFile.path);
-
-    _database = await _initDB('hesabati.db');
   }
 }
