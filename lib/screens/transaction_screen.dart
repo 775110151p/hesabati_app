@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
 import '../models/customer.dart';
-import '../models/customer.dart' as models;
 
 class TransactionScreen extends StatefulWidget {
   final Customer customer;
@@ -33,7 +32,7 @@ class _TransactionScreenState extends State<TransactionScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final transaction = models.Transaction(
+      final transaction = Transaction(
         customerId: widget.customer.id!,
         amount: double.parse(_amountController.text),
         type: _transactionType,
