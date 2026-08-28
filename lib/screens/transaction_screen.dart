@@ -1,191 +1,78 @@
 import 'package:flutter/material.dart';
 import '../database/database_helper.dart';
-import '../models/customer.dart';
 
 class TransactionScreen extends StatefulWidget {
-  final Customer customer;
+  final int customerId;
 
-  const TransactionScreen({super.key, required this.customer});
+  const TransactionScreen({super.key, required this.customerId});
 
   @override
   State<TransactionScreen> createState() => _TransactionScreenState();
 }
 
 class _TransactionScreenState extends State<TransactionScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _amountController = TextEditingController();
   final _noteController = TextEditingController();
-  final DatabaseHelper _db = DatabaseHelper.instance;
-  String _transactionType = 'عليه';
-  bool _isLoading = false;
-
-  @override
-  void dispose() {
-    _amountController.dispose();
-    _noteController.dispose();
-    super.dispose();
-  }
+  String _type = 'له';
 
   Future<void> _saveTransaction() async {
-    if (!_formKey.currentState!.validate()) return;
+    final amount = double.tryParse(_amountController.text);
+    if (amount == null || amount <= 0) return;
 
-    setState(() => _isLoading = true);
+    await DatabaseHelper.instance.insertTransaction({
+      'customer_id': widget.customerId,
+      'amount': amount,
+      'type': _type,
+      'note': _noteController.text,
+      'date': DateTime.now().toString().split(' ').first,
+    });
 
-    try {
-      final transaction = Transaction(
-        customerId: widget.customer.id!,
-        amount: double.parse(_amountController.text),
-        type: _transactionType,
-        note: _noteController.text.trim().isEmpty
-            ? null
-            : _noteController.text.trim(),
-        date: DateTime.now(),
-      );
-
-      await _db.insertTransaction(transaction.toMap());
-
-      if (mounted) {
-        Navigator.pop(context, true);
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('حدث خطأ أثناء الحفظ'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
+    if (mounted) Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('تسجيل عملية'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('إضافة معاملة جديدة')),
       body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Form(
-          key: _formKey,
-          child: ListView(
-            children: [
-              Card(
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.person, color: Colors.blue),
-                      const SizedBox(width: 12),
-                      Text(
-                        'العميل: ${widget.customer.name}',
-                        style: const TextStyle(
-                            fontSize: 16, fontWeight: FontWeight.bold),
-                      ),
-                    ],
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          children: [
+            TextField(
+              controller: _amountController,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'المبلغ'),
+            ),
+            TextField(
+              controller: _noteController,
+              decoration: const InputDecoration(labelText: 'ملاحظة'),
+            ),
+            Row(
+              children: [
+                Expanded(
+                  child: RadioListTile<String>(
+                    title: const Text('له (لك)'),
+                    value: 'له',
+                    groupValue: _type,
+                    onChanged: (val) => setState(() => _type = val!),
                   ),
                 ),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                'نوع العملية',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                textAlign: TextAlign.right,
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Text('عليه (لنا)'),
-                      selected: _transactionType == 'عليه',
-                      selectedColor: Colors.red.shade100,
-                      onSelected: (selected) {
-                        if (selected) setState(() => _transactionType = 'عليه');
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ChoiceChip(
-                      label: const Text('له (لهم)'),
-                      selected: _transactionType == 'له',
-                      selectedColor: Colors.green.shade100,
-                      onSelected: (selected) {
-                        if (selected) setState(() => _transactionType = 'له');
-                      },
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 24),
-              TextFormField(
-                controller: _amountController,
-                textAlign: TextAlign.right,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  labelText: 'المبلغ *',
-                  hintText: 'أدخل المبلغ',
-                  prefixIcon: const Icon(Icons.attach_money),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
+                Expanded(
+                  child: RadioListTile<String>(
+                    title: const Text('عليه'),
+                    value: 'عليه',
+                    groupValue: _type,
+                    onChanged: (val) => setState(() => _type = val!),
                   ),
                 ),
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'المبلغ مطلوب';
-                  }
-                  if (double.tryParse(value) == null ||
-                      double.parse(value) <= 0) {
-                    return 'أدخل مبلغ صحيح';
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _noteController,
-                textAlign: TextAlign.right,
-                maxLines: 3,
-                decoration: InputDecoration(
-                  labelText: 'ملاحظات',
-                  hintText: 'أضف ملاحظات (اختياري)',
-                  prefixIcon: const Icon(Icons.note),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 30),
-              SizedBox(
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _saveTransaction,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _transactionType == 'عليه'
-                        ? Colors.red.shade700
-                        : Colors.green.shade700,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(
-                          'تسجيل ${_transactionType == 'عليه' ? 'مبلغ عليه' : 'مبلغ له'}',
-                          style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white),
-                        ),
-                ),
-              ),
-            ],
-          ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: _saveTransaction,
+              child: const Text('حفظ المعاملة'),
+            ),
+          ],
         ),
       ),
     );
