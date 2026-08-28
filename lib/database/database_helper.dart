@@ -88,6 +88,7 @@ class DatabaseHelper {
     final result = await db.rawQuery('''
       SELECT 
         COALESCE(SUM(CASE WHEN type = 'له' THEN amount ELSE 0 END), 0) as total_for_him,
+        COALESCE(SUM(CASE WHEN type = 'عليه'```dart
         COALESCE(SUM(CASE WHEN type = 'عليه' THEN amount ELSE 0 END), 0) as total_on_him
       FROM transactions 
       WHERE customer_id = ?
